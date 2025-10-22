@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'alarm_screen.dart';
+import 'sound_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -223,7 +224,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: BottomNavigationBar(
               currentIndex: currentIndex,
               onTap: (i) {
-                setState(() => currentIndex = i);
+                if (i == 0) {
+                  // Alarm: giữ lại Home (nếu muốn chỉ set index)
+                  setState(() => currentIndex = 0);
+                } else if (i == 1) {
+                  // Sound: chuyển sang màn Sound (phải có route '/sound' trong main.dart)
+                  Navigator.pushReplacementNamed(context, '/sound');
+                } else if (i == 2) {
+                  // Settings / Profile: chuyển sang profile (hoặc route settings của bạn)
+                  Navigator.pushReplacementNamed(context, '/settings');
+                }
               },
               backgroundColor: const Color.fromARGB(0, 67, 33, 152),
               elevation: 0,

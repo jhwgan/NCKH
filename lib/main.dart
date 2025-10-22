@@ -5,8 +5,13 @@ import 'screens/question_age_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/alarm_screen.dart';
+import 'screens/sound_screen.dart';
+import 'screens/settings_screen.dart';
+import 'services/alarm_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 🔹 Bắt buộc để chờ hàm async
+  await AlarmService.init(); // 🔹 Khởi tạo plugin báo thức
   runApp(const MyApp());
 }
 
@@ -25,6 +30,8 @@ class MyApp extends StatelessWidget {
         '/question_age': (_) => const QuestionAgeScreen(),
         '/home': (_) => const HomeScreen(),
         '/profile': (_) => const ProfileScreen(),
+        '/sound': (_) => const SoundScreen(),
+        '/settings': (_) => const SettingsScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/alarm') {

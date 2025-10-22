@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'age_questionnaire_screen.dart';
+
 class QuestionAgeScreen extends StatefulWidget {
   const QuestionAgeScreen({super.key});
 
@@ -46,6 +48,7 @@ class _QuestionAgeScreenState extends State<QuestionAgeScreen> {
     }
   }
 
+  // Sửa _finish: lưu birthday/age rồi chuyển sang luồng câu hỏi theo tuổi
   Future<void> _finish() async {
     if (_picked == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,7 +57,6 @@ class _QuestionAgeScreenState extends State<QuestionAgeScreen> {
       return;
     }
 
-    final navigator = Navigator.of(context);
     final prefs = await SharedPreferences.getInstance();
 
     // compute age
@@ -65,13 +67,18 @@ class _QuestionAgeScreenState extends State<QuestionAgeScreen> {
       age--;
     }
 
-    // save to profile
+    // save to profile basic info
     await prefs.setString('profile_birthday', _picked!.toIso8601String());
     await prefs.setInt('profile_age', age);
     await prefs.setBool('seenOnboarding', true);
 
     if (!mounted) return;
-    navigator.pushReplacementNamed('/home');
+
+    // Chuyển sang màn hỏi theo tuổi (AgeQuestionFlow)
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => AgeQuestionFlow(age: age)),
+    );
   }
 
   @override
@@ -141,7 +148,7 @@ class _QuestionAgeScreenState extends State<QuestionAgeScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Finish'),
+                  child: const Text('Next'),
                 ),
               ),
             ],
