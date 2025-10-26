@@ -92,9 +92,15 @@ class SettingsScreen extends StatelessWidget {
                             color: Colors.white,
                           )),
                     ),
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundImage: AssetImage("assets/images/avatar.png"),
+                    // Avatar: nhấn vào sẽ mở Profile (named route '/profile')
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/profile');
+                      },
+                      child: const CircleAvatar(
+                        radius: 20,
+                        backgroundImage: AssetImage("assets/images/avatar.png"),
+                      ),
                     ),
                   ],
                 ),

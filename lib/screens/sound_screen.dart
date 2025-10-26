@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'sound_detail_screen.dart';
 import '../services/sound_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SoundScreen extends StatefulWidget {
   const SoundScreen({super.key});
@@ -103,9 +104,15 @@ class _SoundScreenState extends State<SoundScreen> {
                         ),
                       ),
                     ),
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundImage: AssetImage("assets/images/avatar.png"),
+                    // Avatar: nhấn vào sẽ mở Profile (named route '/profile')
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/profile');
+                      },
+                      child: const CircleAvatar(
+                        radius: 20,
+                        backgroundImage: AssetImage("assets/images/avatar.png"),
+                      ),
                     ),
                   ],
                 ),
@@ -133,9 +140,14 @@ class _SoundScreenState extends State<SoundScreen> {
                       final isDownloaded = downloadedSet.contains(audioAsset);
 
                       return GestureDetector(
-                        onTap: () {
-                          // mở màn detail và truyền title, image, audio path
-                          Navigator.push(
+                        onTap: () async {
+                          // 🔹 Lưu âm thanh được chọn vào SharedPreferences
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString(
+                              'selectedSound', item['audio']!);
+
+                          // 🔹 Mở màn chi tiết âm thanh
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => SoundDetailScreen(
@@ -144,10 +156,21 @@ class _SoundScreenState extends State<SoundScreen> {
                                 audioAsset: item['audio']!,
                               ),
                             ),
-                          ).then((_) async {
-                            // reload trạng thái downloaded khi quay về (nếu user đã download/remove)
-                            await _loadDownloadedSet();
-                          });
+                          );
+
+                          // 🔹 Reload trạng thái download nếu có thay đổi
+                          await _loadDownloadedSet();
+
+                          // 🔹 Hiển thị thông báo đã chọn
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('✅ Selected sound: ${item['title']}'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(18),

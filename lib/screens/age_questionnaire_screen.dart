@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class AgeQuestionFlow extends StatefulWidget {
   final int age;
@@ -108,8 +109,10 @@ class _AgeQuestionFlowState extends State<AgeQuestionFlow> {
 
     // last question -> save results
     final prefs = await SharedPreferences.getInstance();
+    final gender = prefs.getString('profile_gender') ?? 'unknown';
 
     final Map<String, dynamic> payload = {
+      'gender': gender,
       'age': widget.age,
       'group': widget.age >= 15 && widget.age <= 30
           ? '15-30'
@@ -121,6 +124,14 @@ class _AgeQuestionFlowState extends State<AgeQuestionFlow> {
     };
 
     await prefs.setString('profile_age_questionnaire', jsonEncode(payload));
+
+    final uri = Uri.parse(
+        'http://192.168.88.178:8000/submit_survey'); // hoặc IP server thật
+    await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
     // also set a simpler key for quick access
     await prefs.setString('profile_age_group', payload['group']);
     await prefs.setBool('seenOnboarding', true);

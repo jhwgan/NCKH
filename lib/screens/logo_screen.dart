@@ -67,7 +67,7 @@ class _LogoScreenState extends State<LogoScreen>
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/images/logobackground.png',
+              'assets/images/bed.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -97,7 +97,7 @@ class _LogoScreenState extends State<LogoScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Cycle Alarm',
+                          'Sleepora',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 40,
@@ -132,14 +132,6 @@ class _LogoScreenState extends State<LogoScreen>
                               fontSize: 12,
                               fontWeight: FontWeight.bold),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'FITNESS',
-                        style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),

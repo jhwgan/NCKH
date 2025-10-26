@@ -601,21 +601,66 @@ class _AlarmScreenState extends State<AlarmScreen> {
         color: Color.fromARGB(20, 255, 255, 255), height: 1, thickness: 0.6);
   }
 
-  Future<void> _setAlarmTime() async {
+  Future<void> _setAlarmTime({bool quickTestInMinutes = false}) async {
     final now = DateTime.now();
-    final targetTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      6, // ví dụ báo thức 6:00 AM
-      0,
-    );
+
+    if (quickTestInMinutes) {
+      final candidate = now.add(Duration(minutes: 1));
+      await AlarmService.scheduleAlarm(
+        id: 1,
+        dateTime: candidate,
+        title: 'Cycle Alarm (test)',
+        body: 'This is a quick test alarm',
+        repeatDaily: false,
+        soundRawName:
+            'drizzling', // name without extension: android/res/raw/drizzling.mp3
+        payload: 'test_payload',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Test alarm scheduled at ${candidate.toString()}')),
+      );
+      return;
+    }
+
+    // parse widget.alarmTime (supports "h:mm AM/PM" or "HH:mm")
+    String t = widget.alarmTime.trim();
+    final ampmMatch = RegExp(r'(\d{1,2}):(\d{2})\s*([AaPp][Mm])').firstMatch(t);
+    int hour = 0, minute = 0;
+    if (ampmMatch != null) {
+      hour = int.parse(ampmMatch.group(1)!);
+      minute = int.parse(ampmMatch.group(2)!);
+      final ap = ampmMatch.group(3)!.toLowerCase();
+      if (ap == 'pm' && hour != 12) hour += 12;
+      if (ap == 'am' && hour == 12) hour = 0;
+    } else {
+      final m = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(t);
+      if (m != null) {
+        hour = int.parse(m.group(1)!);
+        minute = int.parse(m.group(2)!);
+      } else {
+        // fallback
+        hour = 6;
+        minute = 0;
+      }
+    }
+
+    DateTime candidate = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!candidate.isAfter(now))
+      candidate = candidate.add(const Duration(days: 1));
 
     await AlarmService.scheduleAlarm(
       id: 1,
-      dateTime: targetTime,
+      dateTime: candidate,
       title: 'Cycle Alarm',
       body: 'Wake up now!',
+      repeatDaily: false,
+      soundRawName: 'drizzling', // tên file trong android/res/raw (no ext)
+      payload: 'alarm:${candidate.toIso8601String()}',
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Alarm set for ${candidate.toString()}')),
     );
   }
 }
