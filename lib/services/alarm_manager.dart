@@ -38,10 +38,10 @@ class AlarmManager {
       if (a.enabled) {
         await AlarmService.scheduleAlarm(
           id: a.id,
-          dateTime: a.time,
-          title: 'Sleepora Alarm',
-          body: a.description,
-          repeatDaily: false,
+          dateTimeLocal: a.time,
+          // title: 'Sleepora Alarm',
+          // body: a.description,
+          // repeatDaily: false,
           soundRawName: _rawNameFromAsset(a.toneAsset ?? 'drizzling'),
           payload: 'alarm:${a.id}',
         );
@@ -63,15 +63,15 @@ class AlarmManager {
     if (alarm.enabled) {
       await AlarmService.scheduleAlarm(
         id: alarm.id,
-        dateTime: alarm.time,
-        title: 'Sleepora Alarm',
-        body: alarm.description,
-        repeatDaily: false,
+        dateTimeLocal: alarm.time,
+        // title: 'Sleepora Alarm',
+        // body: alarm.description,
+        // repeatDaily: false,
         soundRawName: _rawNameFromAsset(alarm.toneAsset ?? 'drizzling'),
         payload: 'alarm:${alarm.id}',
       );
     } else {
-      await AlarmService.cancelAlarm(alarm.id);
+      await AlarmService.cancel(alarm.id);
     }
   }
 
@@ -79,7 +79,7 @@ class AlarmManager {
     final list = await loadAlarms();
     list.removeWhere((x) => x.id == id);
     await saveAlarms(list);
-    await AlarmService.cancelAlarm(id);
+    await AlarmService.cancel(id);
   }
 
   static String _rawNameFromAsset(String asset) {

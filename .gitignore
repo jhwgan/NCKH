@@ -43,3 +43,21 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Ignore Python virtual environments
+.venv/
+server/.venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore model outputs and big files
+*.h5
+*.keras
+*.dll
+*.exe
+*.bin
+*.zip
+*.tar
+*.tar.gz

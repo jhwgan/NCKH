@@ -11,6 +11,7 @@ import 'screens/sound_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/alarm_ring_screen.dart';
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 🔹 Bắt buộc cho async
 
@@ -50,7 +51,7 @@ class MyApp extends StatelessWidget {
           final String alarmTime = (settings.arguments is String &&
                   (settings.arguments as String).isNotEmpty)
               ? settings.arguments as String
-              : '08:00 AM';
+              : '11:25 PM';
           return MaterialPageRoute(
             builder: (_) => AlarmScreen(
               alarmTime: alarmTime,

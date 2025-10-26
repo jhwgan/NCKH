@@ -29,6 +29,7 @@ dependencies:
   image_picker: ^0.8.7+5
   path: ^1.8.3
   file_selector: ^1.0.4
+  permission_handler: ^11.3.1
 
 dependency_overrides:
   flutter_local_notifications: ^17.2.1

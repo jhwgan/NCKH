@@ -125,8 +125,8 @@ class _AgeQuestionFlowState extends State<AgeQuestionFlow> {
 
     await prefs.setString('profile_age_questionnaire', jsonEncode(payload));
 
-    final uri = Uri.parse(
-        'http://192.168.88.178:8000/submit_survey'); // hoặc IP server thật
+    final uri =
+        Uri.parse('http://10.0.2.2:8000/submit_survey'); // hoặc IP server thật
     await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},

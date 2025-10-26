@@ -677,12 +677,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     await AlarmService.scheduleAlarm(
                       id: index + 1,
-                      dateTime: dt,
-                      title: 'Cycle Alarm',
-                      body: desc,
-                      soundRawName: soundRawName,
+                      // dateTime: dt,
+                      // title: 'Cycle Alarm',
+                      // body: desc,
+                      // soundRawName: soundRawName,
+                      // payload:
+                      //     selectedSound, // gửi toàn bộ đường dẫn sang AlarmRingScreen
+                      dateTimeLocal: dt, // DateTime local người dùng đã chọn
                       payload:
-                          selectedSound, // gửi toàn bộ đường dẫn sang AlarmRingScreen
+                          selectedSound, // tuỳ bạn dùng gì ở AlarmRingScreen
+                      soundRawName: 'drizzling',
                     );
 
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -691,7 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 } else {
                   // ❌ Nếu tắt switch → hủy báo thức
-                  await AlarmService.cancelAlarm(index + 1);
+                  await AlarmService.cancel(index + 1);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Alarm #${index + 1} canceled')),
                   );

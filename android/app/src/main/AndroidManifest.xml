@@ -4,11 +4,20 @@
 <!-- Quyền tạo báo thức chính xác -->
 <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:ignore="ProtectedPermissions" />
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="alarm_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <receiver
+            android:name=".alarm_manager.AlarmReceiver"
+            android:exported="true"
+            android:enabled="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

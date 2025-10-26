@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/sound_manager.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import '../../services/alarm_service.dart';
+import '../services/alarm_service.dart';
 
 class AlarmScreen extends StatefulWidget {
   final String alarmTime;
@@ -56,6 +56,17 @@ class _AlarmScreenState extends State<AlarmScreen> {
         _isPreviewPlaying = false;
       });
     });
+    Future.delayed(Duration.zero, () async {
+      final now = DateTime.now();
+      final testAt = now.add(const Duration(seconds: 10));
+      await AlarmService.scheduleAlarm(
+        id: 999,
+        dateTimeLocal: testAt,
+        payload: 'assets/audio/drizzling.mp3',
+        soundRawName: 'drizzling',
+      );
+      debugPrint('[SmokeTest] scheduled id=999 at $testAt');
+    });
   }
 
   Future<void> _loadChosenTone() async {
@@ -95,7 +106,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
     if (v) {
       await _setAlarmTime();
     } else {
-      await AlarmService.cancelAlarm(1);
+      await AlarmService.cancel(1);
     }
   }
 
@@ -601,31 +612,34 @@ class _AlarmScreenState extends State<AlarmScreen> {
         color: Color.fromARGB(20, 255, 255, 255), height: 1, thickness: 0.6);
   }
 
+  // 👉 REPLACE toàn bộ hàm này
   Future<void> _setAlarmTime({bool quickTestInMinutes = false}) async {
-    final now = DateTime.now();
+    DateTime now = DateTime.now();
+
+    // Làm tròn bỏ mili-giây để so sánh chính xác hơn
+    now = now.subtract(Duration(milliseconds: now.millisecond));
 
     if (quickTestInMinutes) {
-      final candidate = now.add(Duration(minutes: 1));
+      final candidate = now.add(const Duration(minutes: 1));
       await AlarmService.scheduleAlarm(
         id: 1,
-        dateTime: candidate,
-        title: 'Cycle Alarm (test)',
-        body: 'This is a quick test alarm',
-        repeatDaily: false,
-        soundRawName:
-            'drizzling', // name without extension: android/res/raw/drizzling.mp3
+        dateTimeLocal: candidate,
+        soundRawName: 'drizzling', // android/app/src/main/res/raw/drizzling.mp3
         payload: 'test_payload',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Test alarm scheduled at ${candidate.toString()}')),
-      );
+      debugPrint('[UI] quickTest candidate=$candidate now=$now');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Test alarm scheduled at $candidate')),
+        );
+      }
       return;
     }
 
     // parse widget.alarmTime (supports "h:mm AM/PM" or "HH:mm")
     String t = widget.alarmTime.trim();
     final ampmMatch = RegExp(r'(\d{1,2}):(\d{2})\s*([AaPp][Mm])').firstMatch(t);
+
     int hour = 0, minute = 0;
     if (ampmMatch != null) {
       hour = int.parse(ampmMatch.group(1)!);
@@ -645,22 +659,36 @@ class _AlarmScreenState extends State<AlarmScreen> {
       }
     }
 
+    // Tạo giờ mục tiêu hôm nay
     DateTime candidate = DateTime(now.year, now.month, now.day, hour, minute);
-    if (!candidate.isAfter(now))
+
+    // Chênh lệch so với hiện tại
+    final diff = candidate.difference(now);
+
+    // CASE 1: nếu đã trễ (<= now) → đẩy sang ngày mai
+    if (!candidate.isAfter(now)) {
       candidate = candidate.add(const Duration(days: 1));
+    }
+    // CASE 2: nếu còn quá sát (<= 2 giây), dễ “lọt” sang quá khứ trong lúc schedule
+    // → đẩy lên thêm 30 giây để vẫn nổ trong hôm nay
+    else if (diff.inSeconds <= 2) {
+      candidate = now.add(const Duration(seconds: 30));
+    }
+
+    debugPrint(
+        '[UI] final candidate=$candidate, now=$now, diff=${candidate.difference(now)}');
 
     await AlarmService.scheduleAlarm(
       id: 1,
-      dateTime: candidate,
-      title: 'Cycle Alarm',
-      body: 'Wake up now!',
-      repeatDaily: false,
-      soundRawName: 'drizzling', // tên file trong android/res/raw (no ext)
+      dateTimeLocal: candidate,
+      soundRawName: 'drizzling', // tên file trong android/res/raw (không đuôi)
       payload: 'alarm:${candidate.toIso8601String()}',
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Alarm set for ${candidate.toString()}')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Alarm set for $candidate')),
+      );
+    }
   }
 }
