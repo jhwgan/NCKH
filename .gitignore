@@ -44,20 +44,40 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Ignore Python virtual environments
-.venv/
-server/.venv/
-
-# Ignore Python cache files
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
+*.log
 
-# Ignore model outputs and big files
+# Virtual environment
+.venv/
+venv/
+env/
+server/.venv/
+server/venv/
+
+# Tensorflow & models
 *.h5
 *.keras
+*.ckpt
+*.ckpt.*
+*.tflite
 *.dll
-*.exe
-*.bin
-*.zip
-*.tar
-*.tar.gz
+
+# Output / generated
+server/analysis_outputs/
+server/uploads/
+server/__pycache__/
+models/__pycache__/
+__pycache__/
+
+# IDE / system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
