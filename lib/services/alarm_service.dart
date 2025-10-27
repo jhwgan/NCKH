@@ -252,13 +252,13 @@ class AlarmService {
 
     final details = NotificationDetails(android: androidDetails);
 
-    // 👉 ADD: immediate test
-    await _plugin.show(
-      777,
-      'Test notification',
-      'Channel sound check',
-      details,
-    );
+    // // 👉 ADD: immediate test
+    // await _plugin.show(
+    //   777,
+    //   'Test notification',
+    //   'Channel sound check',
+    //   details,
+    // );
 
     // Dùng zonedSchedule để hẹn giờ chính xác theo local timezone
     final tzTime = tz.TZDateTime.from(dateTimeLocal, tz.local);

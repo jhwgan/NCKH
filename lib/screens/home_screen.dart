@@ -1,4 +1,5 @@
 import 'package:path/path.dart' as p;
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -7,8 +8,8 @@ import 'package:file_selector/file_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/server_api.dart';
 import '../services/alarm_service.dart';
-
 import 'alarm_screen.dart';
+import 'alarm_ring_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +23,119 @@ class _HomeScreenState extends State<HomeScreen> {
   TimeOfDay wakeTime = const TimeOfDay(hour: 6, minute: 30);
 
   List<bool> toggles = [true, false, true];
+  List<Map<String, dynamic>> _generatedAlarms = [];
+
+  final _server = ServerApi('http://10.0.2.2:8000');
+  int currentIndex = 0;
+  bool _calculating = false;
+  bool _uploading = false;
+  String? _selectedFileName;
+  String? _selectedFilePath;
+
+  Timer? _checkTimer;
+  final Set<String> _triggeredAlarms =
+      {}; // 🔔 Lưu báo thức đã kêu để tránh lặp
+
+  @override
+  void initState() {
+    super.initState();
+    _init(); // ✅ thay vì gọi 2 hàm rời
+  }
+
+  Future<void> _init() async {
+    await _loadAlarmPrefs(); // đợi load xong
+    _checkAlarmsAndNavigate(); // check ngay 1 lần để không lỡ nhịp
+    _startCheckTimer(); // rồi mới chạy timer
+  }
+
+  @override
+  void dispose() {
+    _checkTimer?.cancel();
+    super.dispose();
+  }
+
+  // ⏱ Kiểm tra thời gian mỗi 30 giây
+  void _startCheckTimer() {
+    _checkTimer?.cancel();
+    _checkTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkAlarmsAndNavigate();
+    });
+  }
+
+  Future<void> _checkAlarmsAndNavigate() async {
+    if (_generatedAlarms.isEmpty) return;
+
+    final now = DateTime.now();
+
+    for (int i = 0; i < _generatedAlarms.length; i++) {
+      final alarm = _generatedAlarms[i];
+      final isEnabled = i < toggles.length ? toggles[i] : false;
+      final alarmTimeStr = alarm['time']?.toString() ?? '';
+      if (!isEnabled || alarmTimeStr.isEmpty) continue;
+      if (_triggeredAlarms.contains(alarmTimeStr)) continue;
+
+      final alarmDt = _parseTimeString(alarmTimeStr, now);
+      if (alarmDt == null) continue;
+
+      final diffSec = alarmDt.difference(now).inSeconds;
+
+      // ✅ Cho phép lệch nhẹ ±2s để không lỡ tick
+      if (diffSec.abs() <= 2) {
+        _triggeredAlarms.add(alarmTimeStr);
+        await _navigateToAlarmRing(alarmTimeStr);
+      }
+    }
+  }
+
+  Future<void> _navigateToAlarmRing(String time) async {
+    if (!mounted) return;
+
+    // ✅ Lấy tone đã chọn (chính là key 'chosen_tone' bạn đang dùng bên AlarmScreen)
+    final prefs = await SharedPreferences.getInstance();
+    final tone = prefs.getString('chosen_tone') ?? 'assets/audio/drizzling.mp3';
+
+    // ❌ Bỏ const vì sẽ truyền tham số động
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AlarmRingScreen(toneAsset: tone),
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('⏰ Alarm ringing at $time')),
+    );
+  }
+
+  /// Helper parse "HH:mm" hoặc "h:mm AM/PM"
+  DateTime? _parseTimeString(String s, DateTime reference,
+      {bool allowNextDay = true}) {
+    s = s.trim();
+    final hhmm24 = RegExp(r'^(\d{1,2}):(\d{2})$');
+    final ampm = RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$');
+
+    Match? m;
+    int hour = 0, min = 0;
+    if ((m = hhmm24.firstMatch(s)) != null) {
+      hour = int.parse(m!.group(1)!);
+      min = int.parse(m.group(2)!);
+    } else if ((m = ampm.firstMatch(s)) != null) {
+      hour = int.parse(m!.group(1)!);
+      min = int.parse(m.group(2)!);
+      final ap = m.group(3)!.toLowerCase();
+      if (ap == 'pm' && hour != 12) hour += 12;
+      if (ap == 'am' && hour == 12) hour = 0;
+    } else {
+      return null;
+    }
+
+    DateTime dt =
+        DateTime(reference.year, reference.month, reference.day, hour, min);
+    if (allowNextDay && dt.isBefore(reference)) {
+      dt = dt.add(const Duration(days: 1));
+    }
+    return dt;
+  }
 
   /// 🧠 Lưu trạng thái báo thức (toggles và times)
   Future<void> _saveAlarmPrefs() async {
@@ -37,32 +151,23 @@ class _HomeScreenState extends State<HomeScreen> {
     print('💾 [SAVE] Saved alarm_times=$timeStrings');
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadAlarmPrefs(); // 🪵 log kiểm tra khi app mở lên
-  }
-
   /// 🧠 Load lại khi mở app
   Future<void> _loadAlarmPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final toggleStrings = prefs.getStringList('alarm_toggles') ?? [];
     final timeStrings = prefs.getStringList('alarm_times') ?? [];
 
+    setState(() {
+      toggles = toggleStrings.map((s) => s == 'true').toList();
+      _generatedAlarms = timeStrings
+          .map((t) => {'time': t, 'description': 'Loaded from prefs'})
+          .toList();
+    });
+
     print('📂 [LOAD] alarm_toggles=$toggleStrings');
     print('📂 [LOAD] alarm_times=$timeStrings');
+    print('📂 Loaded alarms: $_generatedAlarms');
   }
-
-  int currentIndex = 0;
-
-  String? _selectedFileName;
-  String? _selectedFilePath;
-  bool _uploading = false;
-  bool _calculating = false;
-
-  List<Map<String, dynamic>> _generatedAlarms = [];
-
-  final _server = ServerApi('http://10.0.2.2:8000'); // IP backend
 
   String _formatTimeOfDay(TimeOfDay t) {
     final hh = t.hour.toString().padLeft(2, '0');
@@ -137,37 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
-  }
-
-  /// --- Helper: parse time string (24h or AM/PM) relative to reference date
-  DateTime? _parseTimeString(String s, DateTime reference,
-      {bool allowNextDay = true}) {
-    s = s.trim();
-    final hhmm24 = RegExp(r'^(\d{1,2}):(\d{2})$');
-    final ampm = RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$');
-
-    Match? m;
-    int hour = 0, min = 0;
-    if ((m = hhmm24.firstMatch(s)) != null) {
-      hour = int.parse(m!.group(1)!);
-      min = int.parse(m.group(2)!);
-    } else if ((m = ampm.firstMatch(s)) != null) {
-      hour = int.parse(m!.group(1)!);
-      min = int.parse(m.group(2)!);
-      final ap = m.group(3)!.toLowerCase();
-      if (ap == 'pm' && hour != 12) hour += 12;
-      if (ap == 'am' && hour == 12) hour = 0;
-    } else {
-      return null;
-    }
-
-    DateTime dt =
-        DateTime(reference.year, reference.month, reference.day, hour, min);
-    if (allowNextDay &&
-        dt.isBefore(reference.subtract(const Duration(minutes: 1)))) {
-      dt = dt.add(const Duration(days: 1));
-    }
-    return dt;
   }
 
   /// Format DateTime to "h:mm AM/PM"
@@ -275,10 +349,10 @@ class _HomeScreenState extends State<HomeScreen> {
         t = t.add(const Duration(minutes: 90));
       }
 
-// slotWindow: how far from the slot we accept model suggestions.
-// Use small window if you want to prefer exact cycle times (e.g., 5-10 minutes).
+      // slotWindow: how far from the slot we accept model suggestions.
+      // Use small window if you want to prefer exact cycle times (e.g., 5-10 minutes).
       final slotWindow = const Duration(minutes: 10); // adjust to taste
-// half-cycle window
+      // half-cycle window
       final List<Map<String, dynamic>> combined = [];
       for (var i = 0; i < cycleSlots.length; i++) {
         final slot = cycleSlots[i];
@@ -341,7 +415,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _generatedAlarms = finalAlarms;
+        // Đảm bảo toggles có đủ phần tử
+        if (toggles.length < finalAlarms.length) {
+          toggles = [
+            ...toggles,
+            ...List.filled(finalAlarms.length - toggles.length, true)
+          ];
+        }
       });
+
+      // Lưu vào SharedPreferences
+      await _saveAlarmPrefs();
 
       final alarmTexts = finalAlarms
           .map((a) => '${a['time']} — ${a['description']}')
@@ -610,16 +694,57 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context) => AlarmScreen(
               alarmTime: time,
               enabled: toggle,
-              onToggle: (v) {
+              onToggle: (v) async {
                 if (index < toggles.length) {
                   setState(() => toggles[index] = v);
                 } else {
                   setState(() => toggles.add(v));
                 }
+
+                // Lưu trạng thái mới
+                await _saveAlarmPrefs();
+
+                // 🔔 Đặt hoặc hủy báo thức
+                if (v) {
+                  final alarmTime = time;
+                  final dt = _parseTimeString(alarmTime, DateTime.now());
+                  if (dt != null) {
+                    final prefs = await SharedPreferences.getInstance();
+                    final selectedSound = prefs.getString('chosen_tone') ??
+                        'assets/audio/drizzling.mp3';
+
+                    String? soundRawName;
+                    if (selectedSound.startsWith('audio/') ||
+                        selectedSound.startsWith('assets/audio/')) {
+                      soundRawName = null;
+                    } else {
+                      soundRawName = selectedSound.replaceAll('.mp3', '');
+                    }
+
+                    await AlarmService.scheduleAlarm(
+                      id: index + 1,
+                      dateTimeLocal: dt,
+                      payload: selectedSound,
+                      soundRawName: soundRawName ?? 'drizzling',
+                    );
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('⏰ Alarm set for $alarmTime')),
+                    );
+                  }
+                } else {
+                  await AlarmService.cancel(index + 1);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Alarm #${index + 1} canceled')),
+                  );
+                }
               },
             ),
           ),
-        );
+        ).then((_) {
+          // Cập nhật lại trạng thái khi quay về từ AlarmScreen
+          if (mounted) setState(() {});
+        });
       },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
@@ -655,12 +780,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   setState(() => toggles.add(v));
                 }
 
-                // 🔔 Nếu bật switch → đặt báo thức
+                // Lưu trạng thái mới
+                await _saveAlarmPrefs();
+
+                // 🔔 Đặt hoặc hủy báo thức
                 if (v) {
                   final alarmTime = time;
                   final dt = _parseTimeString(alarmTime, DateTime.now());
                   if (dt != null) {
-                    // Lấy âm thanh đã chọn (nếu bạn lưu trong SharedPreferences)
                     final prefs = await SharedPreferences.getInstance();
                     final selectedSound = prefs.getString('selectedSound') ??
                         'assets/audio/drizzling.mp3';
@@ -668,25 +795,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     String? soundRawName;
                     if (selectedSound.startsWith('audio/') ||
                         selectedSound.startsWith('assets/audio/')) {
-                      // sound trong assets, dùng trong AlarmRingScreen chứ không raw
                       soundRawName = null;
                     } else {
-                      // sound trong raw (tên ngắn)
                       soundRawName = selectedSound.replaceAll('.mp3', '');
                     }
 
                     await AlarmService.scheduleAlarm(
                       id: index + 1,
-                      // dateTime: dt,
-                      // title: 'Cycle Alarm',
-                      // body: desc,
-                      // soundRawName: soundRawName,
-                      // payload:
-                      //     selectedSound, // gửi toàn bộ đường dẫn sang AlarmRingScreen
-                      dateTimeLocal: dt, // DateTime local người dùng đã chọn
-                      payload:
-                          selectedSound, // tuỳ bạn dùng gì ở AlarmRingScreen
-                      soundRawName: 'drizzling',
+                      dateTimeLocal: dt,
+                      payload: selectedSound,
+                      soundRawName: soundRawName ?? 'drizzling',
                     );
 
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -694,7 +812,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 } else {
-                  // ❌ Nếu tắt switch → hủy báo thức
                   await AlarmService.cancel(index + 1);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Alarm #${index + 1} canceled')),

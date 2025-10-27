@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 class AlarmRingScreen extends StatefulWidget {
-  const AlarmRingScreen({super.key});
+  final String? toneAsset; // ✅ Lưu lại tham số truyền vào
+
+  const AlarmRingScreen({super.key, this.toneAsset});
 
   @override
   State<AlarmRingScreen> createState() => _AlarmRingScreenState();
@@ -16,12 +18,17 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Đợi context sẵn sàng để lấy arguments
     Future.microtask(() {
       final arg = ModalRoute.of(context)?.settings.arguments;
+
       if (arg is String && arg.isNotEmpty) {
-        // payload có thể là tên sound hoặc json -> tùy cách bạn gửi từ scheduleAlarm
         _soundName = arg;
+      } else {
+        _soundName = widget.toneAsset;
       }
+
       _startAlarm();
     });
   }
@@ -30,28 +37,26 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
     try {
       await _player.setReleaseMode(ReleaseMode.loop);
 
-      String sourcePath;
-      if (_soundName != null && _soundName!.isNotEmpty) {
-        sourcePath = _soundName!;
-      } else {
-        sourcePath = 'assets/audio/drizzling.mp3';
-      }
+      // ✅ Nếu không có âm thanh nào được chỉ định, phát mặc định
+      String sourcePath = (_soundName != null && _soundName!.isNotEmpty)
+          ? _soundName!
+          : 'assets/audio/drizzling.mp3';
 
-      // Nếu là asset (trong assets/audio)
-      if (sourcePath.startsWith('assets/') || sourcePath.startsWith('audio/')) {
+      // ✅ Xác định loại nguồn âm thanh
+      if (sourcePath.startsWith('assets/')) {
         await _player.play(AssetSource(sourcePath.replaceFirst('assets/', '')));
+      } else if (sourcePath.startsWith('audio/')) {
+        await _player.play(AssetSource(sourcePath));
       } else if (sourcePath.startsWith('/')) {
-        // Nếu là file local (file user import từ raw hoặc storage)
         await _player.play(DeviceFileSource(sourcePath));
       } else {
-        // Nếu chỉ có tên (raw)
         await _player.play(AssetSource('audio/$sourcePath.mp3'));
       }
 
-      setState(() => _isPlaying = true);
-      print('🔊 Playing sound: $sourcePath');
+      if (mounted) setState(() => _isPlaying = true);
+      debugPrint('🔊 Playing alarm sound: $sourcePath');
     } catch (e) {
-      print('❌ Error starting alarm audio: $e');
+      debugPrint('❌ Error starting alarm audio: $e');
     }
   }
 
@@ -70,30 +75,47 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.9),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "⏰ Alarm Ringing",
-              style: TextStyle(color: Colors.white, fontSize: 32),
-            ),
-            const SizedBox(height: 40),
-            const Icon(Icons.alarm_rounded, color: Colors.redAccent, size: 100),
-            const SizedBox(height: 60),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.alarm_rounded,
+                  color: Colors.redAccent, size: 120),
+              const SizedBox(height: 30),
+              const Text(
+                "⏰ Alarm is ringing!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              onPressed: _stopAlarm,
-              child: const Text(
-                "Stop Alarm",
-                style: TextStyle(fontSize: 20, color: Colors.white),
+              const SizedBox(height: 60),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _stopAlarm,
+                child: const Text(
+                  "Stop Alarm!",
+                  style: TextStyle(fontSize: 20, color: Colors.white),
+                ),
               ),
-            ),
-          ],
+              if (_isPlaying) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  "Sound is playing...",
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
